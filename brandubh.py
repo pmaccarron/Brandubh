@@ -55,7 +55,7 @@ showBoard()
 ##########
 #Move
 
-def move(turn,player):
+def move(board,turn,player=None,piece=None,mov=None):
     '''This function takes either the attackers or defenders dictionaries (called turn)
         and lists the available pieces asking the user to put the number of which
         they want to move in.
@@ -77,12 +77,12 @@ def move(turn,player):
             piece = int(piece)
 
         #call function "available moves" (see below)    
-        moves = available_moves(piece,turn)
+        moves = available_moves(board,piece,turn)
         if len(moves) == 0:
             #Again, should put recursive error handling function here
             piece = input('No moves, try another piece\n')
             piece = int(piece) if piece != 'k' else 'k'
-            moves = available_moves(piece,turn)
+            moves = available_moves(board,piece,turn)
 
         #List available moves
         print('\nAvailable moves:')
@@ -113,20 +113,20 @@ def move(turn,player):
     #Assign new position to the piece
     turn[piece] = mov
     #Draw piece on board
-    if turn == attack:
+    if 'k' not in turn:
         board[mov] = '+'
     if piece == 'k':
         board[mov] = '='
         #If the king moved from the centre position put an "O" there
         if turn[piece] != (3,3):
             board[3,3] = 'O'
-    elif turn == defend:
+    elif 'k' in turn:
         board[mov] = '-'
 
     return piece, mov
 
 
-def available_moves(piece,turn):
+def available_moves(board,piece,turn):
     '''Function to check available moves for a piece
         Get piece and which player's turn it is, then check
         left and right and up and down iteratively to get free
@@ -173,7 +173,7 @@ def available_moves(piece,turn):
 ###########
 #Winner
 
-def check_win(captured):
+def check_win(captured,turn):
     '''Function to check winner, takes the captured list, if the king is
         in it the attackers win, if the king is on one of the corner pieces
         the defenders win. 
@@ -187,15 +187,16 @@ def check_win(captured):
         win = -1
         print('\nAttackers win!')
 
-    if comp == 'attack':
+    if 'k' not in turn:
         win = win*-1
+
     return win
 
 
 #################
 #Capture
 
-def capture(turn,mov):
+def capture(board,turn,mov):
     """
     This function takes whose turn it is to identify the enemies.
     It checks the last move and if it surrounds an enemy it removes them and
@@ -220,26 +221,26 @@ def capture(turn,mov):
         if board[x-2,y] in friend:
             board[x-1,y] = ' '
             captured += [u for u in enemies if enemies[u] == (x-1,y)]
-            print("Captured",captured, 'in pos',(x-1,y),'\n')
+            #print("Captured",captured, 'in pos',(x-1,y),'\n')
     if x < 5 and board[x+1,y] in enemy:
         if board[x+2,y] in friend:
             board[x+1,y] = ' '
             captured += [u for u in enemies if enemies[u] == (x+1,y)]
-            print("Captured",captured, 'in pos',(x+1,y),'\n')
+            #print("Captured",captured, 'in pos',(x+1,y),'\n')
     if y > 1 and board[x,y-1] in enemy:
         if board[x,y-2] in friend:
             board[x,y-1] = ' '
             captured += [u for u in enemies if enemies[u] == (x,y-1)]
-            print("Captured",captured, 'in pos',( x,y-1),'\n')
+            #print("Captured",captured, 'in pos',( x,y-1),'\n')
     if y < 5 and board[x,y+1] in enemy:
         if board[x,y+2] in friend:
             board[x,y+1] = ' '
             captured += [u for u in enemies if enemies[u] == (x,y+1)]
-            print("Captured:",captured, 'in pos',(x,y+1),'\n')
+            #print("Captured:",captured, 'in pos',(x,y+1),'\n')
 
-    for u in captured:
-        turn.pop(u)
-        captured.remove(u)
+##    for u in captured:
+##        turn.pop(u)
+##        captured.remove(u)
             
     #Return list of captured pieces
     return(captured)
@@ -249,23 +250,37 @@ def capture(turn,mov):
 
 def best_move(turn):
     best_score = -1e100
+
+    #create new dictionaries
+    dfn = {u:defend[u] for u in defend}
+    att = {u:attack[u] for u in attack}
+    turn = dfn if 'k' in turn else att
+    notturn = att if 'k' in turn else dfn
+
+    turn_capt, notturn_capt = [], []
+
+    #copy board
+    Board = np.array([u for u in board])
     
-    #As the board is symmetrical, there are only 2 pieces it should
-    # consider moving in the first move
-    if count == 1:
-        #Ideally ranomise this for a quadrant and them pick one of those two pieces
-        turn = {u:turn[u] for u in turn if u == 1 or u ==2}
-        
     best_pieces = {}
     for piece in turn:
+        #As the board is symmetrical, there are only 2 pieces it should
+        # consider moving in the first move
+        if count == 1:
+            #Ideally ranomise this for a quadrant and them pick one of those two pieces
+            if piece > 2:
+                break
         moves = {}
-        for m in available_moves(piece, turn):
-            #move piece, same 
+        for m in available_moves(Board, piece, turn):
+            
             original = turn[piece]
-            turn[piece] = m
-            capt = capture(turn,m)
-
-            score = minimax(capt, depth,-1e100,1e100, False)
+            piece, m = move(Board,turn,None,piece,m)
+            turn_capt += capture(Board,turn,m)
+            
+##            for u in capt:
+##                att.pop(u) if 'k' in turn else dfn.pop(u)
+##                capt.remove(u)
+            score = minimax(Board,notturn, depth,-1e100,1e100, False,turn_capt, notturn_capt)
 
             turn[piece] = original
             if score >= best_score:
@@ -293,32 +308,32 @@ def best_move(turn):
     return bestpiece, bestmove
 
 
-def minimax(capt, depth, a,b, is_max):
+def minimax(board, turn, depth, a,b, is_max,turn_capt,notturn_capt):
 
 
     #This is where someone has won
-    if check_win(capt) == 1:
+    if check_win(turn_capt,turn) == 1:
         return 1
-    if check_win(capt) == -1:
+    if check_win(turn_capt,turn) == -1:
         return -1
-    #This is a tie
+    #Add in possability for a tie
     if depth == 0:
         return 0
 
-    if is_max:
-        
-        #copy dictionary so can remove from it to check captures
-        pieces = {u:attack[u] for u in attack} if turn == attack else {u:defend[u] for u in defend}
+    if is_max:     
+##        #copy dictionary so can remove from it to check captures
+##        pieces = {u:attack[u] for u in attack} if turn == attack else {u:defend[u] for u in defend}
 
-        value = -1e100
-        
-        for piece in pieces:
-            for m in available_moves(piece, pieces):
-                original = pieces[piece]
-                pieces[piece] = m
-                capt = capture(pieces,m)          
-                value = max(value,minimax(capt,depth-1,a,b,False))
-                pieces[piece] = original
+        value = -1e100  
+        for piece in turn:
+            if piece in notturn_capt:
+                continue
+            for m in available_moves(board,piece, turn):
+                original = turn[piece]
+                move(board,turn,None,piece,m)
+                turn_capt += capture(board,turn,m)          
+                value = max(value,minimax(board,turn,depth-1,a,b,False,turn_capt,notturn_capt))
+                move(board,turn,None,piece,original)
                 
             a = max(a, value)
             if value >= b:
@@ -327,16 +342,18 @@ def minimax(capt, depth, a,b, is_max):
              
     if is_max == False:
         
-        pieces = {u:attack[u] for u in attack} if turn != attack else {u:defend[u] for u in defend}
+##        pieces = {u:attack[u] for u in attack} if turn != attack else {u:defend[u] for u in defend}
 
         value = 1e100
-        for piece in pieces:
-            for m in available_moves(piece, pieces):
-                original = pieces[piece]
-                pieces[piece] = m
-                capt = capture(pieces,m)      
-                value = min(value,minimax(board,depth-1,a,b,True))
-                pieces[piece] = original
+        for piece in turn:
+            if piece in turn_capt:
+                continue
+            for m in available_moves(board,piece, turn):
+                original = turn[piece]
+                move(board,turn,None,piece,m)
+                notturn_capt += capture(board,turn,m)      
+                value = min(value,minimax(board,turn,depth-1,a,b,True,notturn_capt,turn_capt))
+                move(board,turn,None,piece,original)
             
                 b = min(b, value)
                 if value <= a:
@@ -368,23 +385,25 @@ while win == False:
 
     #This puts the attacker moving first
     turn = attack if count % 2 != 0 else defend
-##    #Remove captured pieces from the dicionary of whoever's turn it is (why not do that in the function earlier?)
-##    for u in captured:
-##        turn.pop(u)
-##        captured.remove(u)
+    #Remove captured pieces from the dicionary of whoever's turn it is (why not do that in the function earlier?)
+    for u in captured:
+        print("Captured:",u, 'in pos',turn[u],'\n')
+        turn.pop(u)
+        captured.remove(u)
 
     print("\nAttacker's turn ("+player+")") if count % 2 != 0 else print("\nDefender's turn ("+player+")")
     #Get the piece to move and their new position
-    piece, mov = move(turn,player)
+    piece, mov = move(board,turn,player)
 ##    if player == 'computer':
 ##        print("Moving piece",piece#,"in position", attack[piece]
 ##              ,"to", mov)
     #Find out if the move captured any pieces
-    captured = capture(turn,mov)
+    captured = capture(board,turn,mov)
+
     #Display the board
     showBoard()
 
-    win = check_win(captured)
+    win = check_win(captured,turn)
 
 
 print(int(count/2),'turns') if count %2 == 0 else print(int(count/2 + 0.5), 'turns')
