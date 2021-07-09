@@ -3,8 +3,8 @@ import random as rd
 ###############
 #Initialisation
 
-#attacker is player 1 and goes first
-player1 = 'computer'
+#attacker is player 1 and goes first. If player is set to "computer" it will make random movements
+player1 = 'human'
 player2 = 'human'
 
 
@@ -103,13 +103,11 @@ def move(board,turn,player=None,piece=None,mov=None):
 
     if player == 'computer':
         #random movement
-        #piece = rd.choice(list(turn.keys()))
-        #moves = available_moves(piece,turn)
-        #mov = rd.choice(moves)
-        #print("Moving piece",piece,"in position", turn[piece],"to", mov)
-
-        piece, mov = best_move(turn)
+        piece = rd.choice(list(turn.keys()))
+        moves = available_moves(piece,turn)
+        mov = rd.choice(moves)
         print("Moving piece",piece,"in position", turn[piece],"to", mov)
+
         
         
         
@@ -251,160 +249,7 @@ def capture(board,turn,mov):
     #Return list of captured pieces
     return(captured)
 
-###########
-#AI move
 
-def best_move(turn):
-    best_score = -1e100
-
-    #create new dictionaries
-    dfn = {u:defend[u] for u in defend}
-    att = {u:attack[u] for u in attack}
-    turn = dfn if 'k' in turn else att
-    notturn = att if 'k' in turn else dfn
-    
-    best_pieces = {}
-    for piece in turn:
-        
-        #copy board
-        temp_board = np.array([u for u in board])
-
-        #As the board is symmetrical, there are only 2 pieces it should
-        # consider moving in the first move
-        if count == 1:
-            #Ideally ranomise this for a quadrant and them pick one of those two pieces
-            if piece > 2:
-                break
-        moves = {}
-
-        for m in available_moves(temp_board, piece, turn):
-
-            #re-initialise everything
-            dfn = {u:defend[u] for u in defend}
-            att = {u:attack[u] for u in attack}
-            turn = dfn if 'k' in turn else att
-            notturn = att if 'k' in turn else dfn
-            temp_board = np.array([u for u in board])
-
-            #Should this definitely be here?
-            capt = []
-            
-            original = turn[piece]
-            piece, m = move(temp_board,turn,None,piece,m)
-            capt += capture(temp_board,turn,m)
-
-            #this is a counter for minimax, not necessary, just used it for debugging once
-            c = 0
-            #These are just copies for the minimax to keep originals
-            turn0 = {u:turn[u] for u in turn}
-            notturn0 = {u:notturn[u] for u in notturn}
-            Board0 = np.array([u for u in temp_board])
-            
-            score = minimax(temp_board,notturn, glob_depth,-1e100,1e100, False,capt,turn,c,notturn0,turn0,Board0)
-            
-            #print(piece,score,m)
-            turn[piece] = original
-            temp_board[0][0] = temp_board[0][6] = temp_board[6][0] = temp_board[6][6] = 'O'
-            if score >= best_score:
-                best_score = score
-                bestmove = m
-                bestpiece = piece
-                if len(moves) > 0:
-                    if max(moves.values()) < score:
-                        moves = {}
-                moves[m] = score
-            best_pieces[piece] = moves
-            #print("moves",moves)
-            #bestmove = rd.choice(list(moves.keys()))
-##        print(temp_board)    
-        print(piece, score)
-
-    print(bestpiece,bestmove)
-
-    if len(best_pieces) > 1:
-        bestpiece = rd.choice(list(best_pieces.keys()))
-##    else:
-##        bestpiece = list(best_pieces.keys())[0]
-
-    if len(best_pieces[bestpiece]) > 1:
-        bestmove = rd.choice(list(best_pieces[bestpiece].keys()))
-        
-    return bestpiece, bestmove
-
-
-def minimax(Board, turn, depth, a,b, is_max,capt,notturn,c,turn0=None,notturn0=None,Board0=None):
-
-    #This is where someone has won
-    if is_max:
-        if check_win(capt,turn) == 1:
-            return 1
-        if check_win(capt,turn) == -1:
-            return -1
-    if is_max == False:
-        if check_win(capt,notturn) == 1:
-            return 1
-        if check_win(capt,notturn) == -1:
-            return -1
-    #Add in possibility for a tie
-    if depth == 0:
-        return 0
-    
-    if is_max:
-        value = -1e100  
-        for piece in turn:
-            
-            if piece in capt:
-                continue
-            for m in available_moves(Board,piece, turn):
-                
-                original = turn[piece]
-                move(Board,turn,None,piece,m)
-                capt += capture(Board,turn,m)
-
-                c += 1
-
-                value = max(value,minimax(Board,notturn,depth-1,a,b,False,capt,turn,c,notturn0,turn0,Board0))
-                move(Board,turn,None,piece,original)
-                Board[0][0] = Board[0][6] = Board[6][0] = Board[6][6] = 'O'
-                
-                a = max(a, value)
-                if value >= b:
-                    break
-                if depth-1 == 0:
-                    Board = Board0
-                    turn = {u:turn0[u] for u in turn0}
-                    notturn = {u:notturn0[u] for u in notturn0}                    
-                    depth = glob_depth
-                    break
-        return value
-             
-    if is_max == False:
-        value = 1e100
-        for piece in turn:
-            if piece in capt:
-                continue
-            for m in available_moves(Board,piece, turn):
-                original = turn[piece]
-                move(Board,turn,None,piece,m)
-                c += 1
-                capt += capture(Board,turn,m)
-                value = min(value,minimax(Board,notturn,depth-1,a,b,True,capt,turn,c,notturn0,turn0,Board0))
-                move(Board,turn,None,piece,original)
-                Board[0][0] = Board[0][6] = Board[6][0] = Board[6][6] = 'O'
-            
-                b = min(b, value)
-                if value <= a:
-                    break
-                if depth-1 == 0:
-                    depth = glob_depth
-                    Board = Board0
-                    turn = {u:turn0[u] for u in turn0}
-                    notturn = {u:notturn0[u] for u in notturn0}
-                    break
-        
-        return value
-
-        
     
 ###########
 #Game loop
@@ -415,10 +260,6 @@ count = 0
 #win condition
 win = False
 
-move(board,defend,piece='a',mov=(1,6))
-move(board,attack,piece=2,mov=(1,4))
-move(board,defend,piece='k',mov=(2,3))
-showBoard(board)
 
 captured = []
 while win == False:
@@ -436,9 +277,6 @@ while win == False:
     print("\nAttacker's turn ("+player+")") if count % 2 != 0 else print("\nDefender's turn ("+player+")")
     #Get the piece to move and their new position
     piece, mov = move(board,turn,player)
-##    if player == 'computer':
-##        print("Moving piece",piece#,"in position", attack[piece]
-##              ,"to", mov)
     #Find out if the move captured any pieces
     captured = capture(board,turn,mov)
 

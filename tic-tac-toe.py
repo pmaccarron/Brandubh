@@ -3,18 +3,19 @@ import random as rd
 ###############
 #Initialisation
 
-#X goes first
+#X goes first, swap these to change order
 player = 'O'
 comp = 'X'
 
 
 ########
-#Create board
+#Create board that corresponds to numpad
 Board = {'7': ' ' , '8': ' ' , '9': ' ' ,
          '4': ' ' , '5': ' ' , '6': ' ' ,
          '1': ' ' , '2': ' ' , '3': ' ' }
 
-def printBoard(board):
+def show_board(board):
+    '''Fucntion to display the board'''
     print(board['7'] + '|' + board['8'] + '|' + board['9'])
     print('-+-+-')
     print(board['4'] + '|' + board['5'] + '|' + board['6'])
@@ -26,6 +27,8 @@ def printBoard(board):
 #Winner
 
 def check_win():
+    '''Fuction to determine if there is a winner
+        Returns False if not, otherwise X or O.'''
     win = False
     a = np.array([np.array(list(Board.values())[0+n:3+n]) for n in range(0,7,3)])
     #check horizontals and verticals
@@ -50,6 +53,8 @@ def check_win():
 #Check move valid
 
 def check_move(move):
+    '''Function that takes the move and checks if it can be made
+        Legal moves are where the board has a space.'''
     if move.isdigit() == False or int(move) < 1 or int(move) > 10:
         move = input('\ntry again\n')
         check_move(move)
@@ -62,7 +67,12 @@ def check_move(move):
 #AI move
 
 def best_move():
+    '''Function to make the computer move employing the minimax algoritm
+        Iterate through all the available moves and compute the score from minimax
+        Move with the score least likely to result in a loss, if a tie, pick one randomly'''
     best_score = -1e100
+
+    #This first 'if' stateent makes the computer take the middle square if it's the first move
     if len([u for u in Board if Board[u] == ' ']) == 9:
            bestmove = '5'
     else:
@@ -70,7 +80,7 @@ def best_move():
         for move in [u for u in Board if Board[u] == ' ']:
             Board[move] = comp
             score = minimax(Board, 9,-1e100,1e100, False)
-            print(move, score)
+            #print(move, score)
             Board[move] = ' '
             if score >= best_score:
                 best_score = score
@@ -85,7 +95,14 @@ def best_move():
     return bestmove
 
 
-def minimax(board, depth, a,b, is_max):    
+def minimax(board, depth, a,b, is_max):
+    '''This is the minimax algorithm with alpha-beta pruning.
+        It is a recursive algorithm, if it's the computer's
+        turn it tries to get the maximum value it can
+        (here 1 if it will win, 0 if tie, -1 if loss).
+        Then when it's not the computer's turn it will try to
+        minimize the opponents chance of winning, i.e. try to
+        get it to get -1 so they lose.'''
 
     #This is where someone has won
     if check_win() == comp:
@@ -96,6 +113,7 @@ def minimax(board, depth, a,b, is_max):
     if len([u for u in board if board[u] == ' ']) == 0:
         return 0
 
+    #maximising
     if is_max:
         value = -1e100
         for move in [u for u in board if board[u] == ' ']:            
@@ -107,7 +125,7 @@ def minimax(board, depth, a,b, is_max):
                 break
         return value
             
-        
+    #minimising
     if is_max == False:
         value = 1e100
         for move in [u for u in board if board[u] == ' ']:
@@ -161,7 +179,7 @@ count = 0
 win = False
 
 while win == False:
-    printBoard(Board)
+    show_board(Board)
 
     #Remove this if there are 2 players
     if turn == player:
@@ -185,12 +203,12 @@ while win == False:
     if count > 4:
         win = check_win()     
         if win != False:
-            printBoard(Board)
+            show_board(Board)
             print("\n"+win, "WINS!")
             break
     
     if count == 9:
-        printBoard(Board)
+        show_board(Board)
         print("\nIt's a Tie")
         break
 
