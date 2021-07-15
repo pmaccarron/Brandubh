@@ -446,10 +446,10 @@ count = 0
 win = False
 
 ##move(board,defend,piece='a',mov=(1,6))
-move(board,attack,piece=1,mov=(0,2))
-move(board,attack,piece=2,mov=(2,5))
-move(board,defend,piece='k',mov=(0,3))
-showBoard(board)
+##move(board,attack,piece=1,mov=(0,2))
+##move(board,attack,piece=2,mov=(2,5))
+##move(board,defend,piece='k',mov=(0,3))
+##showBoard(board)
 
 captured = []
 while win == False:
