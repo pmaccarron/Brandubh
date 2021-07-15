@@ -4,11 +4,11 @@ import random as rd
 #Initialisation
 
 #attacker is player 1 and goes first
-player1 = 'computer'
 player2 = 'human'
+player1 = 'computer'
 
 
-glob_depth = 4
+glob_depth = 5
 ########
 #Create board
 size = 7
@@ -31,6 +31,7 @@ def showBoard(board):
         #print('_______') 
     
 ########
+
 #Pieces
 
 #initial layout
@@ -179,7 +180,7 @@ def available_moves(board,piece,turn):
 ###########
 #Winner
 
-def check_win(captured,turn):
+def check_win(board,captured,turn):
     '''Function to check winner, takes the captured list, if the king is
         in it the attackers win, if the king is on one of the corner pieces
         the defenders win. 
@@ -275,7 +276,6 @@ def best_move(turn):
             #Ideally ranomise this for a quadrant and them pick one of those two pieces
             if piece > 2:
                 break
-        moves = {}
 
         for m in available_moves(temp_board, piece, turn):
 
@@ -293,8 +293,8 @@ def best_move(turn):
             piece, m = move(temp_board,turn,None,piece,m)
             capt += capture(temp_board,turn,m)
 
-            #this is a counter for minimax, not necessary, just used it for debugging once
-            c = 0
+            #this is a counter for minimax, it aims to make the best move in the quickest time
+            c = 1
             #These are just copies for the minimax to keep originals
             turn0 = {u:turn[u] for u in turn}
             notturn0 = {u:notturn[u] for u in notturn}
@@ -306,29 +306,23 @@ def best_move(turn):
             turn[piece] = original
             temp_board[0][0] = temp_board[0][6] = temp_board[6][0] = temp_board[6][6] = 'O'
             if score >= best_score:
+                if score > best_score:
+                    best_pieces = {}
                 best_score = score
                 bestmove = m
                 bestpiece = piece
-                if len(moves) > 0:
-                    if max(moves.values()) < score:
-                        moves = {}
-                moves[m] = score
-            best_pieces[piece] = moves
-            #print("moves",moves)
-            #bestmove = rd.choice(list(moves.keys()))
-##        print(temp_board)    
-        print(piece, score)
+                if bestpiece in best_pieces:
+                    best_pieces[piece] += [bestmove]
+                else:
+                    best_pieces[piece] = [bestmove]
 
-    print(bestpiece,bestmove)
+        print(piece, score)
 
     if len(best_pieces) > 1:
         bestpiece = rd.choice(list(best_pieces.keys()))
-##    else:
-##        bestpiece = list(best_pieces.keys())[0]
-
     if len(best_pieces[bestpiece]) > 1:
-        bestmove = rd.choice(list(best_pieces[bestpiece].keys()))
-        
+        bestmove = rd.choice(best_pieces[bestpiece])
+    
     return bestpiece, bestmove
 
 
@@ -336,22 +330,27 @@ def minimax(Board, turn, depth, a,b, is_max,capt,notturn,c,turn0=None,notturn0=N
 
     #This is where someone has won
     if is_max:
-        if check_win(capt,turn) == 1:
-            return 1
-        if check_win(capt,turn) == -1:
-            return -1
+##      #Want to reverse this as it's checking the result of the previous minimax
+        # 
+        if check_win(Board,capt,turn) == 1:
+            return 100
+        if check_win(Board,capt,turn) == -1:
+            return -100
     if is_max == False:
-        if check_win(capt,notturn) == 1:
-            return 1
-        if check_win(capt,notturn) == -1:
-            return -1
+##        print(turn)
+##        print(check_win(Board,capt,turn))
+##        xx
+        if check_win(Board,capt,notturn) == 1:
+            return 100
+        if check_win(Board,capt,notturn) == -1:
+            return -100
     #Add in possibility for a tie
     if depth == 0:
         return 0
     
     if is_max:
         value = -1e100  
-        for piece in turn:
+        for piece in sorted(turn,reverse=True):
             
             if piece in capt:
                 continue
@@ -360,6 +359,12 @@ def minimax(Board, turn, depth, a,b, is_max,capt,notturn,c,turn0=None,notturn0=N
                 original = turn[piece]
                 move(Board,turn,None,piece,m)
                 capt += capture(Board,turn,m)
+
+##                if 'k' in capt:
+##                    if 'k' in turn:
+##                        return -1
+##                    else:
+##                        return 1
 
                 c += 1
 
@@ -370,17 +375,24 @@ def minimax(Board, turn, depth, a,b, is_max,capt,notturn,c,turn0=None,notturn0=N
                 a = max(a, value)
                 if value >= b:
                     break
-                if depth-1 == 0:
-                    Board = Board0
-                    turn = {u:turn0[u] for u in turn0}
-                    notturn = {u:notturn0[u] for u in notturn0}                    
-                    depth = glob_depth
-                    break
+##                if depth-1 == 0:
+##                    Board = Board0
+##                    turn = {u:turn0[u] for u in turn0}
+##                    notturn = {u:notturn0[u] for u in notturn0}                    
+##                    depth = glob_depth
+##                    break
         return value
              
     if is_max == False:
         value = 1e100
-        for piece in turn:
+        for piece in sorted(turn,reverse=True):
+##            c = 1
+##            flag = 0
+##            if piece == 'k':
+##                flag = 1
+##                print(available_moves(Board,piece, turn))
+##                showBoard(Board)
+##                xx
             if piece in capt:
                 continue
             for m in available_moves(Board,piece, turn):
@@ -388,21 +400,39 @@ def minimax(Board, turn, depth, a,b, is_max,capt,notturn,c,turn0=None,notturn0=N
                 move(Board,turn,None,piece,m)
                 c += 1
                 capt += capture(Board,turn,m)
+##                if flag == 1 and c == 1:
+##                    if m == (0,6) or m == (0,0):
+##                        print('\n',c)
+##                        showBoard(Board)
+##                        print(turn, capt)
+##                        print(check_win(Board,capt,turn))
+##                        xx
+                        
+##                if 'k' in capt:
+##                    if 'k' in turn:
+##                        return 1
+##                    else:
+##                        return -1
                 value = min(value,minimax(Board,notturn,depth-1,a,b,True,capt,turn,c,notturn0,turn0,Board0))
+##                if value == 100:
+##                    print(c)
+##                    showBoard(Board)
+##                    xx
+                
                 move(Board,turn,None,piece,original)
                 Board[0][0] = Board[0][6] = Board[6][0] = Board[6][6] = 'O'
             
                 b = min(b, value)
                 if value <= a:
                     break
-                if depth-1 == 0:
-                    depth = glob_depth
-                    Board = Board0
-                    turn = {u:turn0[u] for u in turn0}
-                    notturn = {u:notturn0[u] for u in notturn0}
-                    break
+##                if depth-1 == 0:
+##                    depth = glob_depth
+##                    Board = Board0
+##                    turn = {u:turn0[u] for u in turn0}
+##                    notturn = {u:notturn0[u] for u in notturn0}
+##                    break
         
-        return value
+        return value/depth
 
         
     
@@ -415,9 +445,10 @@ count = 0
 #win condition
 win = False
 
-move(board,defend,piece='a',mov=(1,6))
-move(board,attack,piece=2,mov=(1,4))
-move(board,defend,piece='k',mov=(2,3))
+##move(board,defend,piece='a',mov=(1,6))
+move(board,attack,piece=1,mov=(0,2))
+move(board,attack,piece=2,mov=(2,5))
+move(board,defend,piece='k',mov=(0,3))
 showBoard(board)
 
 captured = []
@@ -445,6 +476,6 @@ while win == False:
     #Display the board
     showBoard(board)
 
-    win = check_win(captured,turn)
+    win = check_win(board,captured,turn)
     if win != False:
         print("\nAttacker's win!!") if count % 2 != 0 else print("\nDefender's win!!")
